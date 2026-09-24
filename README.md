@@ -5,7 +5,7 @@
 
 El componente `BlueprintCanvas` (`src/components/BlueprintCanvas.jsx`), con `id="blueprint-canvas"` propio y dimensiones por defecto `520×360`. Dibuja una grilla de fondo y, cuando recibe `points`, traza los segmentos consecutivos y marca cada punto con un círculo.
 
-![alt text](Images3/image3.png)
+![alt text](Images/image3.png)
 
 Conexion con el canva vacio. 
 
