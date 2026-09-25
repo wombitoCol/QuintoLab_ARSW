@@ -2,20 +2,26 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
 import { fetchBlueprint } from '../features/blueprints/blueprintsSlice.js'
+import BlueprintCanvas from '../components/BlueprintCanvas.jsx'
+import ErrorBanner from '../components/ErrorBanner.jsx'
 
 export default function BlueprintDetailPage() {
   const { author, name } = useParams()
   const dispatch = useDispatch()
-  const bp = useSelector((s) => s.blueprints.current)
+  const { current: bp, status, error } = useSelector((s) => s.blueprints)
+  const load = () => dispatch(fetchBlueprint({ author, name }))
 
   useEffect(() => {
     dispatch(fetchBlueprint({ author, name }))
   }, [author, name, dispatch])
 
-  if (!bp)
+  if (error.current) return <ErrorBanner message={error.current} onRetry={load} />
+
+  // `current` puede ser otro plano mientras llega el nuevo.
+  if (status.current === 'loading' || bp?.author !== author || bp?.name !== name)
     return (
       <div className="card">
-        <p>Cargando...</p>
+        <p className="muted">Cargando...</p>
       </div>
     )
 
@@ -28,11 +34,7 @@ export default function BlueprintDetailPage() {
       <p>
         <strong>Puntos:</strong> {bp.points?.length || 0}
       </p>
-      <svg width="400" height="200" style={{ background: '#0b1220', borderRadius: 12 }}>
-        {bp.points?.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="4" />
-        ))}
-      </svg>
+      <BlueprintCanvas points={bp.points || []} />
     </div>
   )
 }

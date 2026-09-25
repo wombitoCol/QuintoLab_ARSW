@@ -1,45 +1,47 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { Provider } from 'react-redux'
-import { configureStore, createSlice } from '@reduxjs/toolkit'
+import { describe, it, expect } from 'vitest'
+import { screen, fireEvent, within } from '@testing-library/react'
 import BlueprintsPage from '../src/pages/BlueprintsPage.jsx'
+import { renderWithStore } from './utils.jsx'
 
-// Mock de thunks del slice para no requerir backend
-vi.mock('../src/features/blueprints/blueprintsSlice.js', () => ({
-  fetchAuthors: () => ({ type: 'blueprints/fetchAuthors' }),
-  fetchByAuthor: (author) => ({ type: 'blueprints/fetchByAuthor', payload: author }),
-  fetchBlueprint: (payload) => ({ type: 'blueprints/fetchBlueprint', payload }),
-}))
-
-function makeStore(preloaded) {
-  const slice = createSlice({
-    name: 'blueprints',
-    initialState: {
-      authors: [],
-      byAuthor: {},
-      current: null,
-      status: 'idle',
-      error: null,
-      ...preloaded,
-    },
-    reducers: {},
-  })
-  return configureStore({ reducer: { blueprints: slice.reducer } })
+const search = (author) => {
+  fireEvent.change(screen.getByPlaceholderText(/Author/i), { target: { value: author } })
+  fireEvent.click(screen.getByText(/Get blueprints/i))
 }
 
-describe('BlueprintsPage', () => {
-  it('despacha fetchByAuthor al hacer click en Get blueprints', () => {
-    const store = makeStore()
-    const spy = vi.spyOn(store, 'dispatch')
-    render(
-      <Provider store={store}>
-        <BlueprintsPage />
-      </Provider>,
-    )
+describe('BlueprintsPage (con apimock)', () => {
+  it('despacha fetchByAuthor y lista los planos en la tabla', async () => {
+    const { actions } = renderWithStore(<BlueprintsPage />)
+    search('juan')
 
-    fireEvent.change(screen.getByPlaceholderText(/Author/i), { target: { value: 'JohnConnor' } })
-    fireEvent.click(screen.getByText(/Get blueprints/i))
+    expect(actions.map((a) => a.type)).toContain('blueprints/fetchByAuthor/pending')
+    const pending = actions.find((a) => a.type === 'blueprints/fetchByAuthor/pending')
+    expect(pending.meta.arg).toBe('juan')
 
-    expect(spy).toHaveBeenCalledWith({ type: 'blueprints/fetchByAuthor', payload: 'JohnConnor' })
+    const row = await screen.findByRole('row', { name: /casa-1/ })
+    expect(within(row).getByText('5')).toBeInTheDocument()
+    expect(screen.getByText(/Total user points: 8/)).toBeInTheDocument()
+  })
+
+  it('Open actualiza el nombre del plano actual (estado global)', async () => {
+    const { store } = renderWithStore(<BlueprintsPage />)
+    search('juan')
+    const row = await screen.findByRole('row', { name: /techo/ })
+    fireEvent.click(within(row).getByText('Open'))
+
+    expect(
+      await screen.findByText('techo', { selector: '[data-testid=current-name]' }),
+    ).toBeInTheDocument()
+    expect(store.getState().blueprints.current.points).toHaveLength(3)
+  })
+
+  it('muestra un banner con Reintentar cuando el GET falla', async () => {
+    const { actions } = renderWithStore(<BlueprintsPage />)
+    search('nadie')
+
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent(/nadie/)
+    fireEvent.click(within(banner).getByText('Reintentar'))
+    const retries = actions.filter((a) => a.type === 'blueprints/fetchByAuthor/pending')
+    expect(retries).toHaveLength(2)
   })
 })

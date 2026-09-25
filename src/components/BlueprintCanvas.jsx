@@ -1,7 +1,25 @@
 import { useEffect, useRef } from 'react'
 
-export default function BlueprintCanvas({ id = 'blueprint-canvas', points = [], width = 520, height = 360 }) {
+export default function BlueprintCanvas({
+  id = 'blueprint-canvas',
+  points = [],
+  width = 520,
+  height = 360,
+  onAddPoint,
+}) {
   const ref = useRef(null)
+
+  // El canvas se escala por CSS (width: 100%), así que convertimos a coordenadas internas.
+  const handleClick = (e) => {
+    if (!onAddPoint) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const scaleX = rect.width ? width / rect.width : 1
+    const scaleY = rect.height ? height / rect.height : 1
+    onAddPoint({
+      x: Math.round((e.clientX - rect.left) * scaleX),
+      y: Math.round((e.clientY - rect.top) * scaleY),
+    })
+  }
 
   useEffect(() => {
     const canvas = ref.current
@@ -49,7 +67,12 @@ export default function BlueprintCanvas({ id = 'blueprint-canvas', points = [], 
       ref={ref}
       width={width}
       height={height}
+      onClick={handleClick}
+      aria-label={
+        onAddPoint ? 'Lienzo interactivo: haz click para dibujar' : 'Lienzo del blueprint'
+      }
       style={{
+        cursor: onAddPoint ? 'crosshair' : 'default',
         background: '#0b1220',
         border: '1px solid #334155',
         borderRadius: 12,

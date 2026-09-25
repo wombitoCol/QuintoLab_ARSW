@@ -13,12 +13,18 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// El store se registra aquí para enterarse de un 401 sin crear imports circulares.
+let unauthorizedHandler = () => {}
+export const onUnauthorized = (fn) => {
+  unauthorizedHandler = fn
+}
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response && err.response.status === 401) {
-      // Optionally redirect to login or clear token
       localStorage.removeItem('token')
+      unauthorizedHandler()
     }
     return Promise.reject(err)
   },
